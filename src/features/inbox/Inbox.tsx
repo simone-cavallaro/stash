@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listItems, retryItem, type Item, type StashClient } from '../../supabase.ts';
 import { httpUrl } from '../capture/capture.ts';
+import { unlinkProjectItem } from '../projects/projects.ts';
 
 const date = new Intl.DateTimeFormat('it', { dateStyle: 'medium', timeStyle: 'short' });
 const kinds: Record<string, string> = {
@@ -9,13 +10,21 @@ const kinds: Record<string, string> = {
 };
 const intentions: Record<string, string> = { remember: 'Da ricordare', explore: 'Da esplorare', act: 'Da fare' };
 
-export function Inbox({ client, owner, revision }: { client: StashClient; owner: string; revision: number }) {
+export function Inbox({ client, owner, revision, projectId, onLink }: {
+  client: StashClient;
+  owner: string;
+  revision: number;
+  projectId?: string;
+  onLink?: (itemId: string) => void;
+}) {
   const [items, setItems] = useState<Item[]>([]);
   const [pages, setPages] = useState(1);
   const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [unlinking, setUnlinking] = useState<string | null>(null);
+  const [unlinkFeedback, setUnlinkFeedback] = useState({ message: '', error: false });
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
@@ -28,7 +37,7 @@ export function Inbox({ client, owner, revision }: { client: StashClient; owner:
         const result: Item[] = [];
         let hasMore = false;
         for (let page = 0; page < pages; page++) {
-          const chunk = await listItems(client, owner, result.at(-1));
+          const chunk = await listItems(client, owner, result.at(-1), projectId);
           result.push(...chunk);
           hasMore = chunk.length === 30;
           if (!active || !hasMore) break;
@@ -39,7 +48,7 @@ export function Inbox({ client, owner, revision }: { client: StashClient; owner:
           setError('');
         }
       } catch {
-        if (active) setError('Impossibile caricare l’Inbox.');
+        if (active) setError(projectId ? 'Impossibile caricare gli Item del progetto.' : 'Impossibile caricare l’Inbox.');
       } finally {
         if (active) setLoading(false);
         reading = false;
@@ -50,7 +59,7 @@ export function Inbox({ client, owner, revision }: { client: StashClient; owner:
       if (document.visibilityState === 'visible') void load();
     }, 12000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [client, owner, pages, refresh, revision]);
+  }, [client, owner, pages, refresh, revision, projectId]);
 
   async function retry(id: string) {
     setRetrying(id);
@@ -64,15 +73,34 @@ export function Inbox({ client, owner, revision }: { client: StashClient; owner:
     }
   }
 
+  async function unlink(id: string) {
+    if (!projectId || unlinking) return;
+    setUnlinking(id);
+    setUnlinkFeedback({ message: '', error: false });
+    try {
+      await unlinkProjectItem(client, owner, projectId, id);
+      setItems((rows) => rows.filter((item) => item.id !== id));
+      setRefresh((value) => value + 1);
+      setUnlinkFeedback({ message: 'Item scollegato dal progetto.', error: false });
+    } catch {
+      setUnlinkFeedback({ message: 'Impossibile scollegare l’Item. Riprova.', error: true });
+    } finally {
+      setUnlinking(null);
+    }
+  }
+
   return (
     <section className="inbox" aria-labelledby="inbox-title" aria-busy={loading}>
       <div className="section-heading">
-        <h2 id="inbox-title">Inbox</h2>
+        <h2 id="inbox-title">{projectId ? 'Note e link' : 'Inbox'}</h2>
         <button className="quiet" type="button" onClick={() => setRefresh((value) => value + 1)}>Aggiorna</button>
       </div>
       {error && <p role="alert" className="feedback error">{error}</p>}
+      {projectId && <p role="status" className={unlinkFeedback.error ? 'feedback error' : 'feedback'}>{unlinkFeedback.message}</p>}
       {loading && !items.length && <p className="inbox-empty">Caricamento…</p>}
-      {!loading && !error && !items.length && <p className="inbox-empty">Qui ritroverai le note e i link che salvi.</p>}
+      {!loading && !error && !items.length && <p className="inbox-empty">
+        {projectId ? 'Collega note e link a questo progetto dall’Inbox.' : 'Qui ritroverai le note e i link che salvi.'}
+      </p>}
       <ul className="items">
         {items.map((item) => {
           const classification = item.item_classifications;
@@ -101,6 +129,10 @@ export function Inbox({ client, owner, revision }: { client: StashClient; owner:
                       result.needs_clarification && 'Da chiarire'].filter(Boolean).join(' · ')}
                   </p>
                 )}
+                {onLink && <button className="quiet item-action" type="button" onClick={() => onLink(item.id)}>Collega a progetto</button>}
+                {projectId && <button className="quiet item-action" type="button" disabled={unlinking !== null} onClick={() => void unlink(item.id)}>
+                  {unlinking === item.id ? 'Scollegamento…' : 'Scollega'}
+                </button>}
               </article>
             </li>
           );

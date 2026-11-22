@@ -30,13 +30,15 @@ export async function saveCapture(client: StashClient, owner: string, capture: C
   if (error) throw error;
 }
 
-export async function listItems(client: StashClient, owner: string, cursor?: Item) {
+export async function listItems(client: StashClient, owner: string, cursor?: Item, projectId?: string) {
+  const columns = 'id,raw_text,source_url,capture_source,captured_at,item_classifications(status,result)';
   let query = client.from('items')
-    .select('id,raw_text,source_url,capture_source,captured_at,item_classifications(status,result)')
+    .select(projectId ? `${columns},project_items!inner(project_id)` : columns)
     .eq('user_id', owner)
     .order('captured_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(30);
+  if (projectId) query = query.eq('project_items.project_id', projectId);
   if (cursor) {
     query = query.or(`captured_at.lt.${cursor.captured_at},and(captured_at.eq.${cursor.captured_at},id.lt.${cursor.id})`);
   }

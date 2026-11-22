@@ -2,6 +2,8 @@
 
 Stash è una PWA per salvare note e link e ritrovarli nell’Inbox. Su Android l’app installata può ricevere testo e URL dal menu **Condividi**.
 
+Nella sezione **Progetti** puoi creare un progetto e collegarvi note e link già salvati dall’Inbox. Ogni Item resta nell’Inbox e può appartenere a più progetti. L’azione **Scollega** rimuove il collegamento dal singolo progetto.
+
 ## Sviluppo locale
 
 Servono Node.js 22.18 o successivo, npm, Supabase CLI e un runtime compatibile con Docker per avviare Supabase in locale.
@@ -20,7 +22,7 @@ In Supabase Studio, crea due utenti sintetici confermati in **Authentication →
 npm run dev
 ```
 
-I test usano PostgreSQL in memoria con i ruoli Supabase simulati e un trasporto fittizio per Groq. Verificano la persistenza con AI disattivata, l’isolamento tra utenti, l’idempotenza, il recupero di un lavoro interrotto e la gestione di timeout, quota e risposta non valida.
+I test usano PostgreSQL in memoria con i ruoli Supabase simulati e un trasporto fittizio per Groq. Verificano l’isolamento di Item, progetti e collegamenti, l’idempotenza, il recupero di un lavoro interrotto e la gestione di timeout, quota e risposta non valida.
 
 ## Attivare la classificazione
 

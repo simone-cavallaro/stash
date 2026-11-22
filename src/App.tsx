@@ -3,6 +3,8 @@ import type { Session } from '@supabase/supabase-js';
 import { makeCapture, maxCaptureLength, type Capture } from './features/capture/capture.ts';
 import { claimShare, removeShare } from './features/capture/shared-draft.ts';
 import { Inbox } from './features/inbox/Inbox.tsx';
+import { ProjectLinkDialog, Projects } from './features/projects/Projects.tsx';
+import type { Project } from './features/projects/projects.ts';
 import { saveCapture, type StashClient } from './supabase.ts';
 
 function applyPreference(owner: string, value?: boolean) {
@@ -59,6 +61,8 @@ function Workspace({ client, owner, onSignOut }: { client: StashClient; owner: s
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', error: false });
   const [revision, setRevision] = useState(0);
+  const [projectView, setProjectView] = useState<Project | 'list' | null>(null);
+  const [linkItemId, setLinkItemId] = useState<string | null>(null);
   const [aiAllowed, setAiAllowed] = useState(() => applyPreference(owner));
   const preference = useRef(aiAllowed);
   const inFlight = useRef(false);
@@ -94,12 +98,16 @@ function Workspace({ client, owner, onSignOut }: { client: StashClient; owner: s
     async function receive() {
       const hash = location.hash;
       if (hash === '#share-error') {
+        setProjectView(null);
+        setLinkItemId(null);
         history.replaceState(null, '', location.pathname);
         setFeedback({ message: 'Condivisione non ricevuta. Puoi incollare qui il testo o il link.', error: true });
         return;
       }
       const id = /^#share=([a-f\d-]{36})$/i.exec(hash)?.[1];
       if (!id) return;
+      setProjectView(null);
+      setLinkItemId(null);
       try {
         const draft = await claimShare(id, owner);
         if (!active || location.hash !== hash) return;
@@ -154,8 +162,14 @@ function Workspace({ client, owner, onSignOut }: { client: StashClient; owner: s
         <Brand />
         <button className="quiet" type="button" disabled={busy} onClick={onSignOut}>Esci</button>
       </header>
+      <nav className="workspace-nav" aria-label="Sezioni di Stash">
+        <button className="quiet" type="button" aria-current={projectView === null ? 'page' : undefined}
+          onClick={() => setProjectView(null)}>Inbox</button>
+        <button className="quiet" type="button" aria-current={projectView !== null ? 'page' : undefined}
+          onClick={() => setProjectView('list')}>Progetti</button>
+      </nav>
       <main>
-        <section className="capture" aria-labelledby="capture-title">
+        {projectView === null && <section className="capture" aria-labelledby="capture-title">
           <h1 id="capture-title">Salva al volo</h1>
           <form onSubmit={submit}>
             <label className="sr-only" htmlFor="capture">Testo o link</label>
@@ -180,9 +194,24 @@ function Workspace({ client, owner, onSignOut }: { client: StashClient; owner: s
               <p role="status" className={feedback.error ? 'feedback error' : 'feedback'}>{feedback.message}</p>
             </div>
           </form>
-        </section>
-        <Inbox client={client} owner={owner} revision={revision} />
+        </section>}
+        {projectView === null && <Inbox client={client} owner={owner} revision={revision} onLink={setLinkItemId} />}
+        {projectView === 'list' && <Projects client={client} owner={owner}
+          onOpen={(project) => setProjectView((view) => view === 'list' ? project : view)} />}
+        {projectView && projectView !== 'list' && <>
+          <section aria-labelledby="project-title">
+            <button className="quiet project-title" type="button" onClick={() => setProjectView('list')}>Tutti i progetti</button>
+            <h1 id="project-title" className="project-description">{projectView.name}</h1>
+            {projectView.description && <p className="project-description">{projectView.description}</p>}
+          </section>
+          <Inbox key={projectView.id} client={client} owner={owner} revision={revision} projectId={projectView.id} />
+        </>}
       </main>
+      {linkItemId && <ProjectLinkDialog key={linkItemId} client={client} owner={owner} itemId={linkItemId}
+        onClose={() => setLinkItemId(null)} onOpenProjects={() => {
+          setLinkItemId(null);
+          setProjectView('list');
+        }} />}
     </>
   );
 }

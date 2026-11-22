@@ -53,4 +53,14 @@ textarea::placeholder { color: var(--muted); }
 .classification { margin-top: 0.45rem; }
 .retry { justify-content: flex-start; flex-wrap: wrap; }
 .more { margin-top: 0.5rem; }
+.workspace-nav, .project-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.workspace-nav { margin-bottom: 1rem; }
+.workspace-nav [aria-current=page] { background: #e8ede4; border-color: var(--border); }
+.project-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-block: 1rem; }
+.project-form button { justify-self: start; }
+.project-form select { font: inherit; padding: 0.65rem; min-width: 0; color: inherit; background: white; border: 1px solid #81897b; border-radius: 0.6rem; }
+.project-title, .item-action { padding-inline: 0; text-align: start; overflow-wrap: anywhere; max-width: 100%; }
+.project-description { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 0.35rem; }
+.project-dialog { width: min(100% - 2rem, 28rem); padding: 1rem; color: inherit; background: var(--paper); border: 1px solid var(--border); border-radius: 1.2rem; }
+.project-dialog::backdrop { background: #24282266; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
