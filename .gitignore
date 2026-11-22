@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.vite/
+.env
+.env.*
+!.env.example
+*.local
+supabase/.temp/
+supabase/.branches/
+AGENTS.md
+AGENTS.md:*
+STASH_PROJECT_CONTEXT.md
+.agents/
+.aws/
+.ccb/
+.codex/
+.team/
+WhatsApp Chat */
+WhatsApp Chat*.txt
+Chat WhatsApp*.txt

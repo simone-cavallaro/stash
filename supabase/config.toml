@@ -1,0 +1,7 @@
+project_id = "stash"
+
+[auth]
+enable_signup = false
+
+[functions.classify-item]
+verify_jwt = false
