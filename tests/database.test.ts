@@ -8,6 +8,9 @@ const b = '00000000-0000-4000-8000-000000000002';
 const first = '00000000-0000-4000-8000-000000000003';
 const second = '00000000-0000-4000-8000-000000000004';
 const unclassified = '00000000-0000-4000-8000-000000000005';
+const projectA = '00000000-0000-4000-8000-000000000006';
+const projectB = '00000000-0000-4000-8000-000000000007';
+const otherProject = '00000000-0000-4000-8000-000000000008';
 
 test('PostgreSQL isolation, capture deduplication and classification retry', async (context) => {
   const db = await PGlite.create();
@@ -25,7 +28,7 @@ test('PostgreSQL isolation, capture deduplication and classification retry', asy
     grant usage on schema auth to authenticated;
     insert into auth.users values ('${a}'), ('${b}');
   `);
-  for (const migration of ['20261122000100_items.sql', '20261122000200_classification.sql']) {
+  for (const migration of ['20261122000100_items.sql', '20261122000200_classification.sql', '20261122000300_projects.sql']) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
   }
 
@@ -83,4 +86,51 @@ test('PostgreSQL isolation, capture deduplication and classification retry', asy
         model = 'mock', lease_token = null, lease_until = null
     where user_id = $1 and item_id = $2 and lease_token = $3`, [a, retry.item_id, retry.lease_token]);
   assert.deepEqual((await db.query('select status from public.item_classifications')).rows, [{ status: 'ready' }]);
+
+  await context.test('project membership is idempotent, reversible and scoped to both owners', async () => {
+    const create = (owner: string, id: string, name: string) => db.query(`
+      insert into public.projects (user_id, id, name) values ($1, $2, $3)
+      on conflict (user_id, id) do nothing
+    `, [owner, id, name]);
+    const link = (owner: string, project: string, item: string) => db.query(`
+      insert into public.project_items (user_id, project_id, item_id) values ($1, $2, $3)
+      on conflict (user_id, project_id, item_id) do nothing
+    `, [owner, project, item]);
+    const unlink = (owner: string, project: string, item: string) => db.query(`
+      delete from public.project_items where user_id = $1 and project_id = $2 and item_id = $3
+    `, [owner, project, item]);
+
+    await db.exec(`set role authenticated; set request.jwt.claim.sub = '${b}'`);
+    await create(b, otherProject, 'Secondo account');
+    await capture(b, second, false);
+
+    await db.exec(`set request.jwt.claim.sub = '${a}'`);
+    await create(a, projectA, 'Treni');
+    await create(a, projectA, 'Stesso tentativo');
+    await create(a, projectB, 'Viaggi');
+    assert.deepEqual((await db.query('select name from public.projects order by name')).rows,
+      [{ name: 'Treni' }, { name: 'Viaggi' }]);
+    await assert.rejects(link(a, otherProject, first), /foreign key/);
+    await assert.rejects(link(a, projectA, second), /foreign key/);
+    await link(a, projectA, first);
+    await link(a, projectA, first);
+    await link(a, projectB, first);
+    assert.deepEqual((await db.query('select project_id from public.project_items order by project_id')).rows,
+      [{ project_id: projectA }, { project_id: projectB }]);
+
+    await db.exec(`set request.jwt.claim.sub = '${b}'`);
+    assert.deepEqual((await db.query('select id from public.projects where user_id = $1', [a])).rows, []);
+    assert.deepEqual((await db.query('select item_id from public.project_items')).rows, []);
+    await assert.rejects(link(a, projectA, first), /row-level security/);
+    assert.equal((await unlink(a, projectA, first)).affectedRows, 0);
+    assert.equal((await db.query('delete from public.project_items')).affectedRows, 0);
+
+    await db.exec(`set request.jwt.claim.sub = '${a}'`);
+    assert.equal((await unlink(a, projectA, first)).affectedRows, 1);
+    assert.equal((await unlink(a, projectA, first)).affectedRows, 0);
+    assert.deepEqual((await db.query('select project_id from public.project_items where item_id = $1', [first])).rows,
+      [{ project_id: projectB }]);
+    assert.deepEqual((await db.query('select raw_text from public.items where id = $1', [first])).rows,
+      [{ raw_text: 'Prendere treno' }]);
+  });
 });
