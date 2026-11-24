@@ -40,3 +40,22 @@ test('retry accepts a valid interpretation and sends only the original text', as
 function reply(result: object) {
   return Response.json({ choices: [{ message: { content: JSON.stringify(result) } }] });
 }
+
+test('M2 proposes only explicit personal actions and validates tags', async () => {
+  const proposal = {
+    kind: 'task', intentions: ['act'], needs_clarification: false, tags: [' Viaggi ', 'viaggi'],
+    project_suggestion: ' Treni ', task_suggestion: 'Prendere treno',
+  };
+  const classifyText = (text: string, source = 'manual', answer = proposal) =>
+    classify({ raw_text: text, ai_allowed: true, capture_source: source }, key, async () => reply(answer));
+  const action = await classifyText('Prendere treno');
+  assert.equal(action.status, 'ready');
+  assert.equal(action.result?.task_suggestion, 'Prendere treno');
+  assert.equal(action.result?.project_suggestion, 'Treni');
+  assert.deepEqual(action.result?.tags, ['viaggi']);
+  assert.equal((await classifyText('Prendere treno', 'share')).result?.task_suggestion, null);
+  for (const text of ['Kagi.com', 'Tutorial: configurare la rete', 'Prendere treno\nTesto di un articolo']) {
+    assert.equal((await classifyText(text, 'manual', { ...proposal, task_suggestion: text })).result?.task_suggestion, null);
+  }
+  assert.equal((await classifyText('Prendere treno', 'manual', { ...proposal, tags: ['x'.repeat(41)] })).status, 'failed');
+});
