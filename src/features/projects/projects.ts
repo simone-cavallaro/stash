@@ -1,12 +1,13 @@
 import type { StashClient } from '../../supabase.ts';
 
-export type Project = { id: string; name: string; description: string | null };
+export const projectStatus = { active: 'Attivo', paused: 'In pausa', archived: 'Archiviato' } as const;
+export type Project = { id: string; name: string; description: string | null; status: keyof typeof projectStatus };
 
 export async function listProjects(client: StashClient, owner: string) {
   const projects: Project[] = [];
   const pageSize = 100;
   for (;;) {
-    let query = client.from('projects').select('id,name,description').eq('user_id', owner).order('id').limit(pageSize);
+    let query = client.from('projects').select('id,name,description,status').eq('user_id', owner).order('id').limit(pageSize);
     const cursor = projects.at(-1);
     if (cursor) query = query.gt('id', cursor.id);
     const { data, error } = await query.overrideTypes<Project[], { merge: false }>();
@@ -34,4 +35,12 @@ export async function unlinkProjectItem(client: StashClient, owner: string, proj
   const { error } = await client.from('project_items').delete()
     .eq('user_id', owner).eq('project_id', projectId).eq('item_id', itemId);
   if (error) throw error;
+}
+
+export async function updateProject(client: StashClient, owner: string, project: Project) {
+  const { data, error } = await client.from('projects').update({
+    name: project.name, description: project.description, status: project.status,
+  }).eq('user_id', owner).eq('id', project.id).select('id').maybeSingle();
+  if (error) throw error;
+  return !!data;
 }

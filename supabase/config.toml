@@ -5,3 +5,6 @@ enable_signup = false
 
 [functions.classify-item]
 verify_jwt = false
+
+[functions.purge-trash]
+verify_jwt = false

@@ -1,23 +1,22 @@
 import { useEffect, useState } from 'react';
-import { listItems, retryItem, type Item, type StashClient } from '../../supabase.ts';
+import { retryItem, type StashClient } from '../../supabase.ts';
+import { Attachments } from '../files/Attachments.tsx';
+import { ItemActions } from '../items/ItemActions.tsx';
+import { intentionLabels, kindLabels, listItems, pageSize, type Filters, type OrganizedItem } from '../items/items.ts';
 import { httpUrl } from '../capture/capture.ts';
 import { unlinkProjectItem } from '../projects/projects.ts';
 
 const date = new Intl.DateTimeFormat('it', { dateStyle: 'medium', timeStyle: 'short' });
-const kinds: Record<string, string> = {
-  person: 'Persona', tool: 'Strumento', model: 'Modello', concept: 'Concetto',
-  article: 'Articolo', document: 'Documento', idea: 'Idea', task: 'Azione', other: 'Altro',
-};
-const intentions: Record<string, string> = { remember: 'Da ricordare', explore: 'Da esplorare', act: 'Da fare' };
-
-export function Inbox({ client, owner, revision, projectId, onLink }: {
+export function Inbox({ client, owner, revision, projectId, filters, onLink, onChanged }: {
   client: StashClient;
   owner: string;
   revision: number;
   projectId?: string;
+  filters?: Filters;
+  onChanged: () => void;
   onLink?: (itemId: string) => void;
 }) {
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<OrganizedItem[]>([]);
   const [pages, setPages] = useState(1);
   const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,12 +33,12 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
       if (reading) return;
       reading = true;
       try {
-        const result: Item[] = [];
+        const result: OrganizedItem[] = [];
         let hasMore = false;
         for (let page = 0; page < pages; page++) {
-          const chunk = await listItems(client, owner, result.at(-1), projectId);
+          const chunk = await listItems(client, result.at(-1), projectId ? { project: projectId } : filters);
           result.push(...chunk);
-          hasMore = chunk.length === 30;
+          hasMore = chunk.length === pageSize;
           if (!active || !hasMore) break;
         }
         if (active) {
@@ -48,7 +47,7 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
           setError('');
         }
       } catch {
-        if (active) setError(projectId ? 'Impossibile caricare gli Item del progetto.' : 'Impossibile caricare l’Inbox.');
+        if (active) setError(projectId ? 'Impossibile caricare le note del progetto.' : 'Impossibile caricare le note.');
       } finally {
         if (active) setLoading(false);
         reading = false;
@@ -59,7 +58,7 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
       if (document.visibilityState === 'visible') void load();
     }, 12000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [client, owner, pages, refresh, revision, projectId]);
+  }, [client, owner, pages, refresh, revision, projectId, filters]);
 
   async function retry(id: string) {
     setRetrying(id);
@@ -81,7 +80,8 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
       await unlinkProjectItem(client, owner, projectId, id);
       setItems((rows) => rows.filter((item) => item.id !== id));
       setRefresh((value) => value + 1);
-      setUnlinkFeedback({ message: 'Item scollegato dal progetto.', error: false });
+      onChanged();
+      setUnlinkFeedback({ message: 'Nota scollegata dal progetto.', error: false });
     } catch {
       setUnlinkFeedback({ message: 'Impossibile scollegare l’Item. Riprova.', error: true });
     } finally {
@@ -92,18 +92,18 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
   return (
     <section className="inbox" aria-labelledby="inbox-title" aria-busy={loading}>
       <div className="section-heading">
-        <h2 id="inbox-title">{projectId ? 'Note e link' : 'Inbox'}</h2>
+        <h2 id="inbox-title">{projectId ? 'Note e link' : filters ? 'Risultati' : 'Inbox'}</h2>
         <button className="quiet" type="button" onClick={() => setRefresh((value) => value + 1)}>Aggiorna</button>
       </div>
       {error && <p role="alert" className="feedback error">{error}</p>}
-      {projectId && <p role="status" className={unlinkFeedback.error ? 'feedback error' : 'feedback'}>{unlinkFeedback.message}</p>}
+      <p role="status" className={unlinkFeedback.error ? 'feedback error' : 'feedback'} hidden={!unlinkFeedback.message}>{unlinkFeedback.message}</p>
       {loading && !items.length && <p className="inbox-empty">Caricamento…</p>}
       {!loading && !error && !items.length && <p className="inbox-empty">
-        {projectId ? 'Collega note e link a questo progetto dall’Inbox.' : 'Qui ritroverai le note e i link che salvi.'}
+        {projectId ? 'Collega note e link a questo progetto dall’Inbox.' : filters ? 'Nessuna nota corrispondente.' : 'Qui ritroverai le note e i link che salvi.'}
       </p>}
       <ul className="items">
         {items.map((item) => {
-          const classification = item.item_classifications;
+          const classification = item.classification;
           const result = classification?.result;
           const url = item.source_url && httpUrl(item.source_url);
           return (
@@ -112,6 +112,7 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
                 <div className="item-meta">
                   <span>{item.capture_source === 'share' ? 'Condivisione' : 'Nota'}</span>
                   <time dateTime={item.captured_at}>{date.format(new Date(item.captured_at))}</time>
+                  {item.edited && <span>Modificata</span>}
                 </div>
                 <p className="original">{item.raw_text}</p>
                 {url && <a href={url} target="_blank" rel="noreferrer">Apri link</a>}
@@ -123,12 +124,26 @@ export function Inbox({ client, owner, revision, projectId, onLink }: {
                     <button className="quiet" type="button" disabled={retrying !== null} onClick={() => void retry(item.id)}>Riprova</button>
                   </div>
                 )}
-                {classification?.status === 'ready' && result && (
+                {(item.kind || item.intentions.length > 0 || result?.needs_clarification) && (
                   <p className="classification">
-                    {[kinds[result.kind], ...result.intentions.map((value) => intentions[value]),
-                      result.needs_clarification && 'Da chiarire'].filter(Boolean).join(' · ')}
+                    {[item.kind && kindLabels[item.kind], ...item.intentions.map((value) => intentionLabels[value]),
+                      result?.needs_clarification && 'Da chiarire'].filter(Boolean).join(' · ')}
                   </p>
                 )}
+                {!!item.tags.length && <ul aria-label="Tag" className="tags">
+                  {item.tags.map((tag) => <li key={tag}>{tag}</li>)}
+                </ul>}
+                {item.edited && <details className="attachments">
+                  <summary>Contenuto catturato</summary>
+                  <p className="original">{item.original_text}</p>
+                  {item.original_url && httpUrl(item.original_url) && <a href={item.original_url} target="_blank" rel="noreferrer">Apri link originale</a>}
+                </details>}
+                <Attachments client={client} itemId={item.id} files={item.files} onChanged={onChanged} />
+                <ItemActions client={client} owner={owner} item={item} onChanged={onChanged} onTrashed={(id) => {
+                  setItems((rows) => rows.filter((row) => row.id !== id));
+                  setUnlinkFeedback({ message: 'Nota spostata nel Cestino.', error: false });
+                  onChanged();
+                }} />
                 {onLink && <button className="quiet item-action" type="button" onClick={() => onLink(item.id)}>Collega a progetto</button>}
                 {projectId && <button className="quiet item-action" type="button" disabled={unlinking !== null} onClick={() => void unlink(item.id)}>
                   {unlinking === item.id ? 'Scollegamento…' : 'Scollega'}

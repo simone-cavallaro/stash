@@ -1,12 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.119.2';
 import { classify } from './classifier.ts';
-
-async function matchesSecret(provided: string, expected: string) {
-  const encoder = new TextEncoder();
-  const digest = async (value: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value)));
-  const [left, right] = await Promise.all([digest(provided), digest(`Bearer ${expected}`)]);
-  return left.reduce((difference, byte, index) => difference | (byte ^ right[index]), 0) === 0;
-}
+import { matchesSecret } from '../_shared/worker-auth.ts';
 
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return new Response(null, { status: 405 });
@@ -22,7 +16,7 @@ Deno.serve(async (request) => {
 
   for (let index = 0; index < 4; index++) {
     const { data: job, error: claimError } = await client.rpc('claim_item_classification').maybeSingle<{
-      user_id: string; item_id: string; lease_token: string; raw_text: string; ai_allowed: boolean;
+      user_id: string; item_id: string; lease_token: string; raw_text: string; ai_allowed: boolean; capture_source: string;
     }>();
     if (claimError) return new Response(null, { status: 503 });
     if (!job) break;

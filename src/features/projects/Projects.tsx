@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { StashClient } from '../../supabase.ts';
-import { createProject, linkProjectItem, listProjects, type Project } from './projects.ts';
+import { FormError, ItemDialog } from '../items/ItemDialog.tsx';
+import { createProject, linkProjectItem, listProjects, projectStatus, updateProject, type Project } from './projects.ts';
 
 type AccountProps = { client: StashClient; owner: string };
 
@@ -40,7 +41,7 @@ export function Projects({ client, owner, onOpen }: AccountProps & { onOpen: (pr
     if (saving || !name.trim()) return;
     const values = new FormData(event.currentTarget);
     attempt.current ??= {
-      id: crypto.randomUUID(), name: name.trim(), description: String(values.get('description') ?? '').trim() || null,
+      id: crypto.randomUUID(), status: 'active', name: name.trim(), description: String(values.get('description') ?? '').trim() || null,
     };
     const project = attempt.current;
     setSaving(true);
@@ -67,9 +68,9 @@ export function Projects({ client, owner, onOpen }: AccountProps & { onOpen: (pr
           setError('');
         }}>
           <label htmlFor="project-name">Nome</label>
-          <input id="project-name" autoFocus value={name} required disabled={saving} onChange={(event) => setName(event.target.value)} />
+          <input id="project-name" autoFocus value={name} required maxLength={80} disabled={saving} onChange={(event) => setName(event.target.value)} />
           <label htmlFor="project-description">Descrizione (facoltativa)</label>
-          <textarea id="project-description" name="description" rows={2} disabled={saving} />
+          <textarea id="project-description" name="description" maxLength={2000} rows={2} disabled={saving} />
           {error && <p className="feedback error" role="alert">{error}</p>}
           <div className="project-actions">
             <button className="primary" disabled={saving || !name.trim()}>{saving ? 'Creazione…' : 'Crea progetto'}</button>
@@ -91,6 +92,7 @@ export function Projects({ client, owner, onOpen }: AccountProps & { onOpen: (pr
         {projects?.map((project) => (
           <li key={project.id} className="item">
             <button className="project-title quiet" type="button" onClick={() => onOpen(project)}>{project.name}</button>
+            {project.status !== 'active' && <p className="classification">{projectStatus[project.status]}</p>}
             {project.description && <p className="project-description">{project.description}</p>}
           </li>
         ))}
@@ -99,13 +101,15 @@ export function Projects({ client, owner, onOpen }: AccountProps & { onOpen: (pr
   );
 }
 
-export function ProjectLinkDialog({ client, owner, itemId, onClose, onOpenProjects }: AccountProps & {
+export function ProjectLinkDialog({ client, owner, itemId, onClose, onOpenProjects, onLinked }: AccountProps & {
   itemId: string;
   onClose: () => void;
   onOpenProjects: () => void;
+  onLinked: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const { projects, loadError, reload } = useProjects(client, owner);
+  const { projects: allProjects, loadError, reload } = useProjects(client, owner);
+  const projects = allProjects?.filter((project) => project.status === 'active');
   const [projectId, setProjectId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -131,6 +135,7 @@ export function ProjectLinkDialog({ client, owner, itemId, onClose, onOpenProjec
     try {
       await linkProjectItem(client, owner, selected.id, itemId);
       setLinked(`Collegato a ${selected.name}.`);
+      onLinked();
     } catch {
       setError(true);
     } finally {
@@ -169,4 +174,29 @@ export function ProjectLinkDialog({ client, owner, itemId, onClose, onOpenProjec
       </div>
     </dialog>
   );
+}
+
+export function ProjectEditor({ client, owner, project, onUpdated, onClose }: AccountProps & {
+  project: Project; onUpdated: (project: Project) => void; onClose: () => void;
+}) {
+  return <ItemDialog title="Modifica progetto" confirm="Salva progetto" onClose={onClose} onConfirm={async (data) => {
+    const name = String(data.get('name') ?? '').trim();
+    if (!name) throw new FormError('Scrivi il nome del progetto.');
+    const changed: Project = {
+      ...project, name, description: String(data.get('description') ?? '').trim() || null,
+      status: data.get('status') as Project['status'],
+    };
+    if (!await updateProject(client, owner, changed)) return false;
+    onUpdated(changed);
+    return true;
+  }}>
+    <label htmlFor="rename-project">Nome</label>
+    <input id="rename-project" name="name" required maxLength={80} autoFocus defaultValue={project.name} />
+    <label htmlFor="describe-project">Descrizione</label>
+    <textarea id="describe-project" name="description" maxLength={2000} defaultValue={project.description ?? ''} />
+    <label htmlFor="project-status">Stato</label>
+    <select id="project-status" name="status" defaultValue={project.status}>
+      {Object.entries(projectStatus).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select>
+  </ItemDialog>;
 }
