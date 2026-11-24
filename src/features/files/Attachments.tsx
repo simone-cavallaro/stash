@@ -1,15 +1,17 @@
 import { useId, useRef, useState } from 'react';
+import { ItemDialog, Modal } from '../items/ItemDialog.tsx';
 import type { StashClient } from '../../supabase.ts';
 import { acceptedFiles, downloadFile, maxFiles, prepareFiles, removeFile, uploadFile, type ItemFile, type Upload } from './files.ts';
 
-export function Attachments({ client, itemId, files, onChanged }: {
-  client: StashClient; itemId: string; files: ItemFile[]; onChanged: () => void;
+export function Attachments({ client, itemId, files, onChanged, open, onClose }: {
+  client: StashClient; itemId: string; files: ItemFile[]; onChanged: () => void; open: boolean; onClose: () => void;
 }) {
   const inputId = useId();
   const inFlight = useRef(false);
   const [remaining, setRemaining] = useState<Upload[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [removing, setRemoving] = useState<ItemFile | null>(null);
 
   async function upload(entries: Upload[]) {
     if (!entries.length || inFlight.current) return;
@@ -50,29 +52,17 @@ export function Attachments({ client, itemId, files, onChanged }: {
     }
   }
 
-  async function remove(file: ItemFile) {
-    setBusy(true);
-    try {
-      await removeFile(client, itemId, file.id);
-      setRemaining((entries) => entries.filter((entry) => entry.id !== file.id));
-      onChanged();
-      setMessage('Allegato rimosso.');
-    } catch {
-      setMessage('Impossibile rimuovere l’allegato. Riprova.');
-    } finally {
-      setBusy(false);
-    }
-  }
+  if (!open) return null;
 
-  return <details className="attachments">
-    <summary>{files.length ? `Allegati (${files.length})` : 'Allegati'}</summary>
+  return <Modal title="Gestisci allegati" onClose={onClose} canClose={() => !inFlight.current}>
     {!!files.length && <ul className="file-list">
       {files.map((file) => <li key={file.id}>
         <span>{file.name}{file.status === 'pending' ? ' · Da completare' : ''}</span>
         {file.status === 'ready' && <button type="button" className="quiet" onClick={() => {
           void downloadFile(client, file).catch(() => setMessage('Impossibile scaricare l’allegato.'));
         }}>Scarica</button>}
-        <button type="button" className="quiet" disabled={busy} onClick={() => void remove(file)}>Rimuovi</button>
+        <button type="button" className="quiet danger-text" disabled={busy} onClick={() => setRemoving(file)}
+          aria-label={`Rimuovi ${file.name}`}>Rimuovi…</button>
       </li>)}
     </ul>}
     <label htmlFor={inputId}>{files.some((file) => file.status === 'pending') ? 'Aggiungi o riseleziona i file' : 'Aggiungi allegati'}</label>
@@ -82,9 +72,21 @@ export function Attachments({ client, itemId, files, onChanged }: {
         event.target.value = '';
       }} />
     {!!remaining.length && <div className="project-actions">
+      <ul className="file-list" aria-label="Caricamenti da completare">
+        {remaining.map(({ id, file }) => <li key={id}>{file.name} · Da completare</li>)}
+      </ul>
       <button type="button" className="quiet" disabled={busy} onClick={() => void upload(remaining)}>Riprova allegati</button>
       <button type="button" className="quiet" disabled={busy} onClick={() => setRemaining([])}>Annulla tentativo</button>
     </div>}
     <p className="feedback" role="status">{busy ? 'Attendi…' : message}</p>
-  </details>;
+    <button className="quiet" type="button" disabled={busy} onClick={onClose}>Chiudi</button>
+    {removing && <ItemDialog title="Rimuovi allegato" confirm="Rimuovi" danger onClose={() => setRemoving(null)}
+      onConfirm={async () => {
+        await removeFile(client, itemId, removing.id);
+        setRemaining((entries) => entries.filter((entry) => entry.id !== removing.id));
+        setMessage('Allegato rimosso.');
+        onChanged();
+        return true;
+      }}><p className="original">Rimuovi «{removing.name}» dalla nota.</p></ItemDialog>}
+  </Modal>;
 }

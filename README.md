@@ -1,10 +1,10 @@
 # Stash
 
-Stash è una PWA per salvare note e link e ritrovarli nell’Inbox. Su Android l’app installata può ricevere testo e URL dal menu **Condividi**.
+Stash è una PWA per salvare note e link. La **Home** mostra le cinque note più recenti. La lente apre la ricerca nella **Libreria**, dove puoi cercare e filtrare l’intero archivio. Usa la barra inferiore o uno swipe orizzontale per passare tra Home, Libreria, Progetti, Task e Cestino. Su Android l’app installata riceve testo e URL dal menu **Condividi**.
 
-Nella sezione **Progetti** puoi creare un progetto e collegarvi note e link già salvati dall’Inbox. Ogni Item resta nell’Inbox e può appartenere a più progetti. L’azione **Scollega** rimuove il collegamento dal singolo progetto.
+Nella sezione **Progetti** puoi creare un progetto. Per aggiungere una nota già salvata, apri il menu **⋯** della nota e scegli **Collega a progetto**. Ogni nota resta in Libreria e può appartenere a più progetti. Nel dettaglio del progetto, **Scollega dal progetto** rimuove il singolo collegamento.
 
-Puoi modificare una nota o un link dall’Inbox, dalla Libreria e dai progetti. La versione catturata resta accessibile sotto **Contenuto catturato**. **Elimina** sposta la nota nel Cestino per 30 giorni, da cui puoi ripristinare anche allegati, task e collegamenti. La Libreria cerca nell’intero archivio e combina ricerca e filtri.
+Il menu **⋯** in alto a destra di ogni nota raccoglie le azioni disponibili. Puoi modificare la nota, correggere tipo e tag, creare un task e gestire gli allegati. La versione catturata resta accessibile sotto **Contenuto catturato**. **Sposta nel Cestino** rende la nota recuperabile per 30 giorni. Dal menu della nota nel Cestino, **Ripristina** recupera anche allegati, task e collegamenti.
 
 Ogni nota può avere fino a 5 allegati da 10 MB, caricati dentro Stash. Se un caricamento si interrompe, riprova sulla stessa nota. Per gli allegati da completare puoi riselezionare i file originali dalla nota. Il menu Condividi di Android accetta testo e link.
 
@@ -82,9 +82,10 @@ $$);
 
 Imposta la configurazione pubblica del progetto Supabase, esegui `npm run build` e pubblica il contenuto di `dist/` alla radice di un sito HTTPS. Per una prima prova puoi usare il caricamento diretto di Cloudflare Pages. Apri il sito in Chrome su Android e installa Stash.
 
-1. Accedi, lascia la classificazione disattivata e salva «Prendere treno». Chiudi Stash, riaprilo e verifica il testo nell’Inbox. Accedi con il secondo utente di prova e verifica che la nota sia assente.
+1. Accedi, lascia la classificazione disattivata e salva «Prendere treno». Chiudi Stash, riaprilo e verifica il testo in Home. Accedi con il secondo utente di prova e verifica che la nota sia assente.
 2. Condividi un URL da Chrome e uno da YouTube. Verifica che entrambi compaiano al riavvio. Se la connessione si interrompe prima della conferma, riapri la schermata della condivisione e riprova lo stesso invio. L’Inbox deve contenere un solo Item per invio. Per provare un nuovo salvataggio intenzionale, condividi nuovamente lo stesso link.
-3. Abilita la classificazione e salva una nota sintetica. Verifica che l’Inbox mostri il risultato o, con il backend di prova privo di chiave Groq, un errore con **Riprova**. Dopo un tentativo riuscito, controlla che la classificazione compaia sulla stessa nota.
+3. Abilita la classificazione e salva una nota sintetica. Verifica che la Home mostri il risultato o, con il backend di prova privo di chiave Groq, lo stato di errore. Dal menu **⋯** usa **Riprova classificazione**. Dopo un tentativo riuscito, controlla che la classificazione compaia sulla stessa nota.
 
 4. Collega una nota a due progetti. Modificala, verifica testo e link nella Libreria e nei due progetti, poi spostala nel Cestino e ripristinala. Verifica che il task collegato torni visibile.
 5. Carica un’immagine e un PDF sintetici dal selettore. Interrompi la connessione durante un tentativo e riprova. Verifica che ciascun file compaia una sola volta e sia scaricabile con l’account proprietario.
+6. Scorri in orizzontale tra le cinque sezioni e verifica che la barra evidenzi quella corrente. Prova lo scroll verticale, il gesto Indietro di Android e la navigazione con la tastiera aperta. Controlla che la bozza si ritrovi tornando alla Home.
