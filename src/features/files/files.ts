@@ -44,7 +44,7 @@ export async function uploadFile(client: StashClient, itemId: string, upload: Up
   if (finalizeError || !complete) throw finalizeError ?? uploadError ?? new Error('attachment_incomplete');
 }
 
-export async function downloadFile(client: StashClient, file: ItemFile) {
+export async function downloadFile(client: StashClient, file: Pick<ItemFile, 'object_path' | 'name'>) {
   const { data, error } = await client.storage.from(bucket).download(file.object_path);
   if (error) throw error;
   const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));

@@ -135,10 +135,11 @@ export function Inbox({ client, owner, revision, project, filters, recent, onLin
                   {classification?.status === 'pending' && <p className="classification status-pending">Classificazione in attesa</p>}
                   {classification?.status === 'skipped' && <p className="classification">Classificazione omessa per proteggere il contenuto</p>}
                   {classification?.status === 'failed' && <p className="classification error">Classificazione non riuscita</p>}
-                  {(item.intentions.length > 0 || classification?.result?.needs_clarification) && (
+                  {item.clarification_context && <p className="original"><strong>Contesto</strong><br />{item.clarification_context}</p>}
+                  {(item.intentions.length > 0 || item.clarification_available) && (
                     <p className="classification">
                       {[...item.intentions.map((value) => intentionLabels[value]),
-                        classification?.result?.needs_clarification && 'Da chiarire'].filter(Boolean).join(' · ')}
+                        item.clarification_available && 'Da chiarire'].filter(Boolean).join(' · ')}
                     </p>
                   )}
                   {!!item.tags.length && <ul aria-label="Tag" className="tags">

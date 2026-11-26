@@ -117,6 +117,10 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 
 .inbox { margin-top: 1.35rem; }
 .section-heading { margin-bottom: 0.5rem; flex-wrap: wrap; }
+.review-panel { margin-block: 1.15rem; }
+.review-list { display: grid; gap: 0.25rem; padding: 0; margin: 0; list-style: none; }
+.review-note { max-width: 100%; text-align: start; overflow-wrap: anywhere; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block-start: 0.75rem; }
 .inbox > .feedback, .inline-feedback { margin-block: 0.5rem; }
 .items { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.57rem; }
 .item { padding: 0.75rem; box-shadow: var(--shadow); }

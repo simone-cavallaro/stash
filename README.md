@@ -8,6 +8,10 @@ Il menu **⋯** in alto a destra di ogni nota raccoglie le azioni disponibili. P
 
 Ogni nota può avere fino a 5 allegati da 10 MB, caricati dentro Stash. Se un caricamento si interrompe, riprova sulla stessa nota. Per gli allegati da completare puoi riselezionare i file originali dalla nota. Il menu Condividi di Android accetta testo e link.
 
+In Home, **Da chiarire** raccoglie le note con intenzione ancora incerta da un’ora dopo la cattura. Puoi scegliere un’intenzione, aggiungere contesto, creare un task, rimandare di 24 ore o chiudere la domanda. Il contesto salvato compare nella scheda ed è ricercabile in Libreria.
+
+I **Ricordi della settimana** riuniscono fino a cinque note da ricordare o approfondire, salvate da almeno 14 giorni. La raccolta si aggiorna alla prima apertura utile della Home da lunedì, nel fuso Europe/Rome. **Già visto** sospende la nota per 12 settimane, **Più tardi** le dà priorità nella prossima raccolta e **Non riproporre** la esclude.
+
 ## Sviluppo locale
 
 Servono Node.js 22.18 o successivo, npm, Supabase CLI e un runtime compatibile con Docker per avviare Supabase in locale.
@@ -26,7 +30,9 @@ In Supabase Studio, crea due utenti sintetici confermati in **Authentication →
 npm run dev
 ```
 
-I test usano PostgreSQL in memoria con i ruoli Supabase simulati e un trasporto fittizio per Groq. Verificano l’isolamento di Item, progetti e collegamenti, l’idempotenza, il recupero di un lavoro interrotto e la gestione di timeout, quota e risposta non valida.
+I test usano PostgreSQL in memoria con i ruoli Supabase simulati e un trasporto fittizio per Groq. Verificano l’isolamento di Item, progetti e collegamenti, l’idempotenza, il recupero di un lavoro interrotto e la gestione di timeout, quota e risposta non valida. I test M3 coprono anche i tempi dei chiarimenti, la precedenza delle correzioni, la selezione settimanale e il feedback. Applica le due migrazioni M3 prima di pubblicare il frontend.
+
+Il collaudo M3 su Supabase locale ha verificato l’aggiornamento da M2 con dati sintetici, accesso con due account, allegati privati, Cestino e richieste concorrenti alle RPC. Gli advisor non hanno registrato rilievi. Le Edge Function sono state provate nel runtime Supabase diretto dopo un 404 del gateway nativo locale. Il collaudo M3 sulla PWA installata su Android resta aperto.
 
 ## Attivare la classificazione
 
@@ -89,3 +95,5 @@ Imposta la configurazione pubblica del progetto Supabase, esegui `npm run build`
 4. Collega una nota a due progetti. Modificala, verifica testo e link nella Libreria e nei due progetti, poi spostala nel Cestino e ripristinala. Verifica che il task collegato torni visibile.
 5. Carica un’immagine e un PDF sintetici dal selettore. Interrompi la connessione durante un tentativo e riprova. Verifica che ciascun file compaia una sola volta e sia scaricabile con l’account proprietario.
 6. Scorri in orizzontale tra le cinque sezioni e verifica che la barra evidenzi quella corrente. Prova lo scroll verticale, il gesto Indietro di Android e la navigazione con la tastiera aperta. Controlla che la bozza si ritrovi tornando alla Home.
+7. Con dati sintetici, riapri Stash dopo un’ora e rispondi a un chiarimento aggiungendo contesto. Cercalo in Libreria. Su una seconda nota usa **Crea task** e verifica che il task compaia solo dopo la conferma e abbia la scadenza vuota.
+8. Con note di prova da ricordare o da approfondire, salvate da almeno 14 giorni, apri un ricordo e usa **Già visto**. Chiudi e riapri l’app. Verifica che la stessa raccolta resti disponibile e che la nota già vista sia scomparsa.

@@ -17,8 +17,9 @@ function toLocalInput(value: string | null) {
   return new Date(time.getTime() - time.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
-export function TaskEditor({ client, owner, itemId, task, onClose, onSaved }: {
+export function TaskEditor({ client, owner, itemId, task, onClose, onSaved, onCreate }: {
   client: StashClient; owner: string; itemId: string; task?: Task; onClose: () => void; onSaved: () => void;
+  onCreate?: (title: string, due: string | null) => Promise<boolean>;
 }) {
   const requestId = useRef<{ id: string; signature: string } | null>(null);
   return <ItemDialog title={task ? 'Modifica task' : 'Nuovo task'} confirm={task ? 'Salva modifiche' : 'Crea task'}
@@ -32,6 +33,8 @@ export function TaskEditor({ client, owner, itemId, task, onClose, onSaved }: {
           .eq('user_id', owner).eq('id', task.id).select('id').maybeSingle();
         if (error) throw error;
         if (!updated) return false;
+      } else if (onCreate) {
+        if (!await onCreate(title, due_at)) return false;
       } else {
         const signature = JSON.stringify([title, due_at]);
         if (requestId.current?.signature !== signature) requestId.current = { id: crypto.randomUUID(), signature };
