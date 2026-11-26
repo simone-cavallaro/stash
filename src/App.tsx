@@ -10,6 +10,8 @@ import { Trash } from './features/items/Trash.tsx';
 import { Library } from './features/library/Library.tsx';
 import { Tasks } from './features/tasks/Tasks.tsx';
 import { Inbox } from './features/inbox/Inbox.tsx';
+import { Clarifications } from './features/remember/Clarifications.tsx';
+import { Memories } from './features/remember/Memories.tsx';
 import { ProjectEditor, ProjectLinkDialog, Projects } from './features/projects/Projects.tsx';
 import { projectStatus, type Project } from './features/projects/projects.ts';
 import { saveCapture, type StashClient } from './supabase.ts';
@@ -321,6 +323,8 @@ function Workspace({ client, owner, onSignOut }: { client: StashClient; owner: s
               <p role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'feedback error' : 'feedback'}>{feedback.message}</p>
             </form>
           </section>
+          <Clarifications client={client} owner={owner} revision={revision} onChanged={changed} />
+          <Memories client={client} revision={revision} />
           <Inbox client={client} owner={owner} revision={revision} onChanged={changed} onLink={setLinkItemId}
             recent={{ onAll: () => navigate('library'), onWrite: () => capture.current?.focus() }} />
         </>}

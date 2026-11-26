@@ -26,6 +26,8 @@ export type OrganizedItem = Capture & Overrides & {
   intentions: Intention[];
   tags: string[];
   classification: { status: Exclude<keyof typeof statusLabels, 'off'>; result: { needs_clarification: boolean } | null } | null;
+  clarification_available?: boolean;
+  clarification_context?: string | null;
   project_suggestion: string | null;
   task_suggestion: string | null;
   files: ItemFile[];
