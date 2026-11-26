@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { StashClient } from '../../supabase.ts';
+import { Icon } from '../../components/Icon.tsx';
+import { focusAfterRemoval, NoteMenu, noteLabel } from './NoteMenu.tsx';
 import { listTrash, pageSize, restoreItem, type TrashedItem } from './items.ts';
 
 const date = new Intl.DateTimeFormat('it', { dateStyle: 'medium', timeStyle: 'short' });
@@ -13,6 +15,8 @@ export function Trash({ client, onRestored }: { client: StashClient; onRestored:
   const [refresh, setRefresh] = useState(0);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const section = useRef<HTMLElement>(null);
   const reload = () => setRefresh((value) => value + 1);
 
   useEffect(() => {
@@ -29,6 +33,7 @@ export function Trash({ client, onRestored }: { client: StashClient; onRestored:
         }
         if (active) {
           setItems(result);
+          setOpenMenu((current) => result.some((item) => item.id === current) ? current : null);
           setMore(hasMore);
         }
       } catch {
@@ -46,8 +51,10 @@ export function Trash({ client, onRestored }: { client: StashClient; onRestored:
     setMessage('');
     setError('');
     try {
-      if (await restoreItem(client, item)) {
-        setItems((rows) => rows.filter((row) => row.id !== item.id));
+      const restored = await restoreItem(client, item);
+      focusAfterRemoval(section.current, item.id);
+      setItems((rows) => rows.filter((row) => row.id !== item.id));
+      if (restored) {
         setMessage('Nota ripristinata.');
         onRestored();
       } else {
@@ -61,8 +68,8 @@ export function Trash({ client, onRestored }: { client: StashClient; onRestored:
     }
   }
 
-  return <section aria-labelledby="trash-title" aria-busy={loading}>
-    <div className="section-heading"><h1 id="trash-title">Cestino</h1>
+  return <section ref={section} aria-labelledby="trash-title" aria-busy={loading}>
+    <div className="section-heading"><h1 id="trash-title" data-list-heading tabIndex={-1}>Cestino</h1>
       <button type="button" className="quiet" onClick={() => {
         setError('');
         reload();
@@ -72,14 +79,21 @@ export function Trash({ client, onRestored }: { client: StashClient; onRestored:
     {error && <p className="feedback error" role="alert">{error}</p>}
     <p className="feedback" role="status">{message}</p>
     {loading && <p role="status">Caricamento…</p>}
-    {!items.length && !loading && !error && <p>Il cestino è vuoto.</p>}
+    {!items.length && !loading && !error && <p className="empty-state">Il Cestino è vuoto.</p>}
     <ul className="items">
-      {items.map((item) => <li key={item.id} className="item">
-        <p className="original">{item.text}</p>
-        <p className="classification">Ripristinabile fino al <time dateTime={item.expires_at}>{date.format(new Date(item.expires_at))}</time></p>
-        <button type="button" className="quiet" disabled={!!restore} onClick={() => void recover(item)}>
-          {restore === item.id ? 'Ripristino…' : 'Ripristina'}
-        </button>
+      {items.map((item) => <li key={item.id}>
+        <article className="item note-card">
+          <div className="note-heading">
+            <span className="note-icon"><Icon name="trash" /></span>
+            <p className="original">{item.text}</p>
+            <NoteMenu id={item.id} label={noteLabel(item.text)} open={openMenu === item.id} onToggle={setOpenMenu}
+              actions={[{ key: 'restore', label: 'Ripristina', run: () => void recover(item), disabled: !!restore }]} />
+          </div>
+          <div className="note-content">
+            <p className="classification">Ripristinabile fino al <time dateTime={item.expires_at}>{date.format(new Date(item.expires_at))}</time></p>
+            {restore === item.id && <p role="status" className="feedback">Ripristino…</p>}
+          </div>
+        </article>
       </li>)}
     </ul>
     {more && <button type="button" className="quiet more" disabled={loading} onClick={() => {

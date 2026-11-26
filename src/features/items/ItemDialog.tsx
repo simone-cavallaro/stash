@@ -1,17 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 export class FormError extends Error {}
 
-export function ItemDialog({ title, confirm, onConfirm, onClose, children, danger }: {
-  title: string; confirm: string; onConfirm: (data: FormData) => Promise<boolean>;
-  onClose: () => void; children: ReactNode; danger?: boolean;
+export function Modal({ title, onClose, canClose, children }: {
+  title: string; onClose: () => void; canClose?: () => boolean; children: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const inFlight = useRef(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
+  const titleId = useId();
+  useLayoutEffect(() => {
     const element = dialog.current!;
     const previous = document.activeElement;
     element.showModal();
@@ -20,6 +16,24 @@ export function ItemDialog({ title, confirm, onConfirm, onClose, children, dange
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, []);
+
+  return <dialog ref={dialog} aria-labelledby={titleId} className="project-dialog" onCancel={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canClose || canClose()) onClose();
+  }}>
+    <h2 id={titleId}>{title}</h2>
+    {children}
+  </dialog>;
+}
+
+export function ItemDialog({ title, confirm, onConfirm, onClose, children, danger }: {
+  title: string; confirm: string; onConfirm: (data: FormData) => Promise<boolean>;
+  onClose: () => void; children: ReactNode; danger?: boolean;
+}) {
+  const inFlight = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,11 +53,7 @@ export function ItemDialog({ title, confirm, onConfirm, onClose, children, dange
     }
   }
 
-  return <dialog ref={dialog} aria-labelledby="item-dialog-title" className="project-dialog" onCancel={(event) => {
-    event.preventDefault();
-    if (!inFlight.current) onClose();
-  }}>
-    <h2 id="item-dialog-title">{title}</h2>
+  return <Modal title={title} onClose={onClose} canClose={() => !inFlight.current}>
     <form className="project-form" onSubmit={(event) => void submit(event)}>
       <fieldset className="dialog-fields" disabled={busy}>{children}</fieldset>
       {error && <p className="feedback error" role="alert">{error}</p>}
@@ -52,5 +62,5 @@ export function ItemDialog({ title, confirm, onConfirm, onClose, children, dange
         <button className={danger ? 'primary destructive' : 'primary'} disabled={busy}>{busy ? 'Attendi…' : confirm}</button>
       </div>
     </form>
-  </dialog>;
+  </Modal>;
 }
