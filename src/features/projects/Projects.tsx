@@ -60,10 +60,10 @@ export function Projects({ client, owner, onOpen }: AccountProps & { onOpen: (pr
     <section aria-labelledby="projects-title">
       <div className="section-heading">
         <h1 id="projects-title">Progetti</h1>
-        {!editing && <button className="quiet" type="button" onClick={() => setEditing(true)}>Nuovo progetto</button>}
+        {!editing && <button className="primary" type="button" onClick={() => setEditing(true)}>Nuovo progetto</button>}
       </div>
       {editing && (
-        <form className="project-form" onSubmit={(event) => void save(event)} onChange={() => {
+        <form className="project-form project-create" onSubmit={(event) => void save(event)} onChange={() => {
           attempt.current = null;
           setError('');
         }}>
@@ -87,12 +87,12 @@ export function Projects({ client, owner, onOpen }: AccountProps & { onOpen: (pr
         Impossibile caricare i progetti. <button className="quiet" type="button" onClick={reload}>Riprova</button>
       </p>}
       {!projects && !loadError && <p className="inbox-empty" role="status">Caricamento…</p>}
-      {projects?.length === 0 && !editing && <p className="inbox-empty">Crea un progetto per raggruppare note e link.</p>}
+      {projects?.length === 0 && !editing && <p className="empty-state">Crea un progetto per raggruppare note e link.</p>}
       <ul className="items">
         {projects?.map((project) => (
-          <li key={project.id} className="item">
+          <li key={project.id} className="item project-card">
             <button className="project-title quiet" type="button" onClick={() => onOpen(project)}>{project.name}</button>
-            {project.status !== 'active' && <p className="classification">{projectStatus[project.status]}</p>}
+            <p className="classification">{projectStatus[project.status]}</p>
             {project.description && <p className="project-description">{project.description}</p>}
           </li>
         ))}
@@ -156,7 +156,7 @@ export function ProjectLinkDialog({ client, owner, itemId, onClose, onOpenProjec
       {projects?.length === 0 && <p>Puoi iniziare creando un progetto.</p>}
       {!!projects?.length && <form className="project-form" onSubmit={(event) => void link(event)}>
         <label htmlFor="link-project">Progetto</label>
-        <select id="link-project" value={projectId} disabled={busy} onChange={(event) => {
+        <select id="link-project" autoFocus value={projectId} disabled={busy} onChange={(event) => {
           setProjectId(event.target.value);
           setLinked('');
           setError(false);
@@ -164,7 +164,7 @@ export function ProjectLinkDialog({ client, owner, itemId, onClose, onOpenProjec
           <option value="" disabled>Scegli un progetto</option>
           {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
         </select>
-        {error && <p className="feedback error" role="alert">Impossibile collegare l’Item. Riprova.</p>}
+        {error && <p className="feedback error" role="alert">Impossibile collegare la nota. Riprova.</p>}
         <p className="feedback" role="status" hidden={!linked}>{linked}</p>
         <button className="primary" disabled={busy || !projectId}>{busy ? 'Collegamento…' : 'Collega'}</button>
       </form>}

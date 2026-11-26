@@ -20,8 +20,6 @@ export type Overrides = {
 
 export type OrganizedItem = Capture & Overrides & {
   captured_at: string;
-  original_text: string;
-  original_url: string | null;
   edited: boolean;
   revision: number;
   kind: Kind | null;

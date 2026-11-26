@@ -50,8 +50,8 @@ export function TaskEditor({ client, owner, itemId, task, onClose, onSaved }: {
   </ItemDialog>;
 }
 
-export function Tasks({ client, owner, revision, project }: {
-  client: StashClient; owner: string; revision: number; project?: string;
+export function Tasks({ client, owner, revision, project, onLibrary }: {
+  client: StashClient; owner: string; revision: number; project?: string; onLibrary?: () => void;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState('');
@@ -110,23 +110,36 @@ export function Tasks({ client, owner, revision, project }: {
     <div className="section-heading"><h2 id="tasks-title">Task</h2>
       <button type="button" className="quiet" onClick={reload}>Aggiorna</button>
     </div>
-    {error && <p className="feedback error" role="alert">{error}</p>}
+    {error && <div className="inline-feedback">
+      <p className="feedback error" role="alert">{error}</p>
+      <button type="button" className="quiet" onClick={reload}>Riprova</button>
+    </div>}
     {loading && <p className="inbox-empty" role="status">Caricamento…</p>}
-    {!loading && !tasks.length && !error && <p className="inbox-empty">Puoi creare un task da una nota salvata.</p>}
-    <ul className="items">
-      {tasks.map((task) => <li key={task.id} className="item">
-        <strong>{task.title}</strong>
-        <p className="classification">{task.completed_at ? 'Completato' : 'Da fare'}
-          {task.due_at && <> · <time dateTime={task.due_at}>{date.format(new Date(task.due_at))}</time></>}
-        </p>
-        <div className="project-actions">
-          <button type="button" className="quiet" disabled={busy} onClick={() => void toggle(task)}>
-            {task.completed_at ? 'Riapri' : 'Completa'}
-          </button>
-          <button type="button" className="quiet" disabled={busy} onClick={() => setEditing(task)}>Modifica</button>
-        </div>
-      </li>)}
-    </ul>
+    {!loading && !tasks.length && !error && <div className="empty-state">
+      <p className="inbox-empty">{project ? 'Nessun task nel progetto.' : 'Puoi creare un task da una nota salvata.'}</p>
+      {onLibrary && <button type="button" className="quiet" onClick={onLibrary}>Vai alla Libreria</button>}
+    </div>}
+    {([['Da fare', false], ['Completati', true]] as const).map(([label, complete]) => {
+      const group = tasks.filter((task) => !!task.completed_at === complete);
+      if (!group.length) return null;
+      return <div className="task-group" key={label}>
+        <h3>{label}</h3>
+        <ul className="items">
+          {group.map((task) => <li key={task.id} className="item task-card">
+            <div>
+              <strong>{task.title}</strong>
+              {task.due_at && <p className="classification">Scadenza <time dateTime={task.due_at}>{date.format(new Date(task.due_at))}</time></p>}
+            </div>
+            <div className="project-actions">
+              <button type="button" className="quiet" disabled={busy} onClick={() => void toggle(task)}>
+                {task.completed_at ? 'Riapri' : 'Completa'}
+              </button>
+              <button type="button" className="quiet" disabled={busy} onClick={() => setEditing(task)}>Modifica</button>
+            </div>
+          </li>)}
+        </ul>
+      </div>;
+    })}
     {editing && <TaskEditor client={client} owner={owner} itemId={editing.item_id} task={editing}
       onClose={() => setEditing(null)} onSaved={reload} />}
   </section>;
